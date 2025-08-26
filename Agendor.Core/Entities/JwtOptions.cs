@@ -6,5 +6,6 @@
         public string Audience { get; init; } = "Agendor.Web";
         public string SecretKey { get; init; } = "troque-esta-chave-super-secreta-32+chars";
         public int ExpiresMinutes { get; init; } = 60;
+        public int ExpireHours { get; set; }
     }
 }

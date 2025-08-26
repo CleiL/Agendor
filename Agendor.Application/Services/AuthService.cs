@@ -2,12 +2,14 @@
 using Agendor.Application.Interfaces;
 using Agendor.Core.Entities;
 using Agendor.Core.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Threading;
 
 namespace Agendor.Application.Services
 {
@@ -26,34 +28,31 @@ namespace Agendor.Application.Services
         private readonly IUnitOfWorkFactory _uowFactory = uowFactory;
         private readonly JwtOptions _jwt = jwtOptions.Value;
         private readonly ILogger<AuthService> _log = logger;
-
-        public async Task<LoginResponseDto> AuthenticateAsync(LoginDto dto)
+        public async Task<LoginResponseDto> AuthenticateAsync(LoginDto dto, CancellationToken cancellationToken = default)
         {
-            using (_log.BeginScope(new Dictionary<string, object?>
+            using (_log.BeginScope(new Dictionary<string, object?> { ["Flow"] = "Auth.Login", ["Email"] = dto.Email }))
             {
-                ["Flow"] = "Auth.Login",
-                ["Email"] = dto.Email
-            }))
-            {
-                // normaliza e busca usuário (se tiver GetByEmail use; senão GetAll + filter)
                 var email = NormalizeEmail(dto.Email!);
-                var all = await _usuarios.GetAllAsync();
-                var user = all.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+
+                await using var uow = await _uowFactory.CreateAsync(cancellationToken);
+                await uow.BeginAsync(cancellationToken);
+
+                // AGORA usamos o método certo:
+                var user = await _usuarios.GetByEmailAsync(email, cancellationToken);
 
                 if (user is null || !BCrypt.Net.BCrypt.Verify(dto.Password!, user.PasswordHash))
                 {
+                    await uow.RollbackAsync(cancellationToken);
                     _log.LogInformation("Login falhou para {Email}", email);
                     throw new UnauthorizedAccessException("Credenciais inválidas.");
                 }
 
                 var token = GenerateJwt(user);
+
+                await uow.CommitAsync(cancellationToken);
                 _log.LogInformation("Login bem-sucedido para {Email}", email);
 
-                return new LoginResponseDto
-                {
-                    Token = token,
-                    Nome = user.Email
-                };
+                return new LoginResponseDto { Token = token, Nome = user.Email};
             }
         }
 
@@ -84,8 +83,6 @@ namespace Agendor.Application.Services
                     if (existingUsers.Any(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)))
                         throw new InvalidOperationException("Email já cadastrado para login.");
 
-                    // Aqui você pode integrar com IMedicoRepository futuramente (CRM, especialidade etc.)
-                    // Por ora, criamos apenas o Usuario com role "Medico".
                     var user = new Usuario
                     {
                         UsuarioId = Guid.NewGuid(),
@@ -129,7 +126,7 @@ namespace Agendor.Application.Services
                     if (await _pacientes.ExistsByCpfAsync(dto.CPF.Trim(), null))
                         throw new InvalidOperationException("CPF já cadastrado para paciente.");
 
-                    // evita e-mail duplicado em USUÁRIOS também
+                    // evita e-mail duplicado em USUÁRIOS
                     var existingUsers = await _usuarios.GetAllAsync();
                     if (existingUsers.Any(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)))
                         throw new InvalidOperationException("Email já cadastrado para login.");
@@ -140,8 +137,7 @@ namespace Agendor.Application.Services
                         PacienteId = Guid.NewGuid(),
                         Nome = dto.Nome.Trim(),
                         CPF = dto.CPF.Trim(),
-                        Email = email,
-                        Phone = dto.Phone.Trim()
+                        Email = email
                     };
                     await _pacientes.CreateAsync(paciente);
 
@@ -178,20 +174,22 @@ namespace Agendor.Application.Services
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.UsuarioId.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
-            };
+        new Claim(JwtRegisteredClaimNames.Sub, user.UsuarioId.ToString()),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+        new Claim(JwtRegisteredClaimNames.Email, user.Email),
+        new Claim(ClaimTypes.Role, user.Role) // "Paciente" | "Medico"
+    };
 
             var token = new JwtSecurityToken(
                 issuer: _jwt.Issuer,
                 audience: _jwt.Audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(_jwt.ExpiresMinutes),
-                signingCredentials: creds);
+                expires: DateTime.UtcNow.AddHours(_jwt.ExpireHours <= 0 ? 4 : _jwt.ExpireHours),
+                signingCredentials: creds
+            );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
     }
 }

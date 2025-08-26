@@ -43,8 +43,7 @@ namespace Agendor.Application.Services
                         PacienteId = Guid.NewGuid(),
                         Nome = entity.Nome.Trim(),
                         CPF = entity.CPF.Trim(),
-                        Email = entity.Email.Trim(),
-                        Phone = entity.Phone.Trim()
+                        Email = entity.Email.Trim()
                     };
 
                     await _repository.CreateAsync(paciente, cancellationToken);

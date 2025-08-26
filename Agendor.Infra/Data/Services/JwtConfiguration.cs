@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -45,11 +46,10 @@ namespace Agendor.Infra.Data.Services
                 {
                     OnMessageReceived = context =>
                     {
-                        var accessToken = context.Request.Cookies["access_token"];
-                        if (!string.IsNullOrEmpty(accessToken))
-                        {
-                            context.Token = accessToken;
-                        }
+                        var auth = context.Request.Headers["Authorization"].ToString();
+                        if (!string.IsNullOrWhiteSpace(auth) && auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                            context.Token = auth["Bearer ".Length..].Trim(); 
+                        
                         return Task.CompletedTask;
                     }
                 };
@@ -62,8 +62,10 @@ namespace Agendor.Infra.Data.Services
                     IssuerSigningKey = key,
                     ClockSkew = TimeSpan.Zero,
                     ValidIssuer = jwtSettings["Issuer"],
-                    ValidAudience = jwtSettings["Audience"]
+                    ValidAudience = jwtSettings["Audience"],
 
+                    NameClaimType = ClaimTypes.Email,
+                    RoleClaimType = ClaimTypes.Role
                 };
             });
 

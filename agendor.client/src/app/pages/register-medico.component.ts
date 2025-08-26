@@ -38,15 +38,29 @@ import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
                 <mat-card-content>
                     <mat-form-field appearance="outline">
                         <mat-label>Nome</mat-label>
-                        <input matInput type="text" placeholder="Enter your name" formControlName="name"  required>
-                        <mat-error *ngIf="registerForm.get('name')?.hasError('required')">
+                        <input matInput type="text" placeholder="Enter your name" formControlName="nome"  required>
+                        <mat-error *ngIf="registerForm.get('nome')?.hasError('required')">
                             Nome é obrigatório.
                         </mat-error>
-                        <mat-error *ngIf="registerForm.get('name')?.hasError('minlength')">
+                        <mat-error *ngIf="registerForm.get('nome')?.hasError('minlength')">
                             Nome deve ter pelo menos 3 caracteres.
                         </mat-error>
-                        <mat-error *ngIf="registerForm.get('name')?.hasError('maxlength')">
+                        <mat-error *ngIf="registerForm.get('nome')?.hasError('maxlength')">
                             Nome não pode ter mais de 50 caracteres.
+                        </mat-error>
+                    </mat-form-field>
+
+                     <mat-form-field appearance="outline">
+                        <mat-label>Especialidade</mat-label>
+                        <input matInput type="text" placeholder="Enter your especialidade" formControlName="especialidade"  required>
+                        <mat-error *ngIf="registerForm.get('especialidade')?.hasError('required')">
+                            Nome é obrigatório.
+                        </mat-error>
+                        <mat-error *ngIf="registerForm.get('especialidade')?.hasError('minlength')">
+                            Especialidade deve ter pelo menos 3 caracteres.
+                        </mat-error>
+                        <mat-error *ngIf="registerForm.get('especialidade')?.hasError('maxlength')">
+                            Especialidade não pode ter mais de 50 caracteres.
                         </mat-error>
                     </mat-form-field>
 
@@ -157,9 +171,10 @@ export class RegisterMedicoComponent implements OnInit {
 
   ngOnInit(): void {
     this.registerForm = this.#fb.group({
-      name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
+      nome: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
       crm: ['', [Validators.required, Validators.pattern(this.CRM_PATTERN)]],
       email: ['', [Validators.required, Validators.email]],
+      especialidade: ['', [Validators.required]],
       password: ['', [Validators.required, Validators.minLength(8)]]
     });
   }
@@ -178,7 +193,7 @@ export class RegisterMedicoComponent implements OnInit {
           panelClass: ['snackbar-success']
         });
 
-        this.#router.navigate(['/home']);
+        this.#router.navigate(['/login']);
       },
       error: err => {
         const errorMessage = err.error?.detail || 'Erro inesperado';

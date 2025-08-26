@@ -24,29 +24,35 @@ import { AuthService } from "../services/auth.service";
   providers: [],
   template: `
         <mat-toolbar>
-          <span>Agendor</span>
-          <span class="toolbar-spacer"></span>
-          <div class="menu-spacer">
-              <button mat-mini-fab matTooltip="Agenda" [routerLink]="['/home/agenda']">
-                  <mat-icon class="material-symbols-outlined">view_agenda</mat-icon>
-              </button>
-              <button mat-mini-fab matTooltip="Consultas" [routerLink]="['/home/consultas']">
-                  <mat-icon class="material-symbols-outlined">patient_list</mat-icon>
-              </button>
-          </div>
-          <span class="toolbar-spacer"></span>
-          <div class="menu-spacer">
-              <button mat-mini-fab matTooltip="Usuário">
-                  <mat-icon class="material-symbols-outlined">account_circle</mat-icon>
-              </button>
-              <button mat-mini-fab matTooltip="Notificações" [routerLink]="['/home/notifications']">
-                  <mat-icon>notifications</mat-icon>
-              </button>
-              <button mat-mini-fab matTooltip="Sair" (click)="logout()">
-                  <mat-icon>logout</mat-icon>
-              </button>
-          </div>
-      </mat-toolbar>
+      <span>Agendor</span>
+      <span class="toolbar-spacer"></span>
+
+      <div class="menu-spacer">
+        <!-- Paciente: só Agenda -->
+        <button *ngIf="auth.isPaciente" mat-mini-fab matTooltip="Agenda" [routerLink]="['/home/agenda']">
+          <mat-icon class="material-symbols-outlined">view_agenda</mat-icon>
+        </button>
+
+        <!-- Médico: só Consultas -->
+        <button *ngIf="auth.isMedico" mat-mini-fab matTooltip="Consultas" [routerLink]="['/home/consultas']">
+          <!-- 'patient_list' pode não existir em todos os sets; use um ícone garantido -->
+          <mat-icon class="material-symbols-outlined">assignment</mat-icon>
+        </button>
+      </div>
+
+      <span class="toolbar-spacer"></span>
+      <div class="menu-spacer">
+        <button mat-mini-fab matTooltip="Usuário">
+          <mat-icon class="material-symbols-outlined">account_circle</mat-icon>
+        </button>
+        <button mat-mini-fab matTooltip="Notificações" [routerLink]="['/home/notifications']">
+          <mat-icon>notifications</mat-icon>
+        </button>
+        <button mat-mini-fab matTooltip="Sair" (click)="logout()">
+          <mat-icon>logout</mat-icon>
+        </button>
+      </div>
+    </mat-toolbar>
     `,
   styles: [`
         :host {
@@ -69,11 +75,11 @@ import { AuthService } from "../services/auth.service";
 })
 
 export class ToolbarComponent {
-  readonly authService = inject(AuthService);
+  readonly auth = inject(AuthService);
   readonly router = inject(Router);
 
   logout() {
-    this.authService.logout();
+    this.auth.logout();
     this.router.navigate(['/login']);
   }
 }

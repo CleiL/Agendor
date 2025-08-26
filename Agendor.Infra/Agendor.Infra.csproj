@@ -19,6 +19,11 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.8" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.14.0" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.1" />
   </ItemGroup>
+
+    <ItemGroup>
+	    <EmbeddedResource Include="Data\Sql\schema.sql" />
+    </ItemGroup>
 
 </Project>

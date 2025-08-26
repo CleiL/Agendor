@@ -24,8 +24,8 @@ namespace Agendor.Infra.Repositories
             }))
             {
                 const string sql = """
-                    insert into Medicos (MedicoId, Nome, CRM, Email, Phone, Especialidade)
-                    values (@MedicoId, @Nome, @CRM, @Email, @Phone, @Especialidade)
+                    insert into Medicos (MedicoId, Nome, CRM, Email, Especialidade)
+                    values (@MedicoId, @Nome, @CRM, @Email, @Especialidade)
                     """;
                 _logger.LogDebug("Executando inserte na tabela");
                 await Conn.ExecuteAsync(new CommandDefinition(sql, entity, Tx, cancellationToken: cancellationToken));

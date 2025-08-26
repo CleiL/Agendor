@@ -30,7 +30,7 @@ namespace Agendor.Infra.Data.Context
                 PRAGMA synchronous = NORMAL;          
                 PRAGMA busy_timeout = 3000; -- aguarda 3 segundos se o banco estiver ocupado
             """;
-            _ = command.ExecuteNonQueryAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken);
 
             return connection;
         }

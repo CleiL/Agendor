@@ -12,7 +12,6 @@ namespace Agendor.Application.Mapping
                Nome = e.Nome,
                CRM = e.CRM,
                Email = e.Email,
-               Phone = e.Phone,
                Especialidade = e.Especialidade
            };
 
@@ -23,7 +22,6 @@ namespace Agendor.Application.Mapping
                 Nome = dto.Nome?.Trim() ?? string.Empty,
                 CRM = dto.CRM?.Trim() ?? string.Empty,
                 Email = dto.Email?.Trim() ?? string.Empty,
-                Phone = dto.Phone?.Trim() ?? string.Empty,
                 Especialidade = dto.Especialidade?.Trim() ?? string.Empty
             };
     }

@@ -94,5 +94,29 @@ namespace Agendor.Infra.Repositories
                 return entity;
             }
         }
+
+        public async Task<bool> ExistsByEmailAsync(string email, Guid? excludeId = null, CancellationToken cancellationToken = default)
+        {
+            const string sql = """
+                select count(1)
+                from Usuarios
+                where Email = @email AND (@excludeId is null or UsuarioId <> @excludeId);
+                """;
+            var count = await Conn.ExecuteScalarAsync<int>(new CommandDefinition(sql, new { email, excludeId }, Tx, cancellationToken: cancellationToken));
+            _logger.LogDebug("Verificado existência por Email {email}, excluindo {excludeId}: {exists}", email, excludeId, count > 0);
+            return count > 0;
+        }
+
+        public async Task<Usuario?> GetByEmailAsync(string email, CancellationToken ct = default)
+        {
+            const string sql = """
+                    SELECT UsuarioId, Email, PasswordHash, Role
+                    FROM Usuarios
+                    WHERE lower(Email) = lower(@Email)
+                    LIMIT 1;
+                """;
+            return await Conn.QuerySingleOrDefaultAsync<Usuario>(
+                new CommandDefinition(sql, new { Email = email }, Tx, cancellationToken: ct));
+        }
     }
 }

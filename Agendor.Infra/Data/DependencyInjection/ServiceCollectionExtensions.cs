@@ -18,6 +18,8 @@ namespace Agendor.Infra.Data.DependencyInjection
 
             services.AddSingleton<IDbConnectionFactory, SqliteConnectionFactory>();
 
+            services.AddSingleton<ISchemaInitializer, SchemaInitializer>();
+
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IUnitOfWorkFactory, UnitOfWorkFactory>();
 

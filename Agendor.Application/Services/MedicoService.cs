@@ -38,7 +38,6 @@ namespace Agendor.Application.Services
                         Nome = entity.Nome?.Trim() ?? string.Empty,
                         CRM = entity.CRM?.Trim() ?? string.Empty,
                         Email = entity.Email?.Trim() ?? string.Empty,
-                        Phone = entity.Phone?.Trim() ?? string.Empty,
                         Especialidade = entity.Especialidade?.Trim() ?? string.Empty
                     };
                     await _repository.CreateAsync(medico, cancellationToken);

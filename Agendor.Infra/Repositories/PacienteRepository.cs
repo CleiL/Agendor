@@ -23,8 +23,8 @@ namespace Agendor.Infra.Repositories
             }))
             {
                 const string sql = """
-                    insert into Pacientes (PacienteId, Nome, CPF, Email, Phone)
-                    values (@PacienteId, @Nome, @CPF, @Email, @Phone)
+                    insert into Pacientes (PacienteId, Nome, CPF, Email)
+                    values (@PacienteId, @Nome, @CPF, @Email)
                     """;
                 _logger.LogDebug("Executando inserte na tabela");
                 await Conn.ExecuteAsync(new CommandDefinition(sql, entity, Tx, cancellationToken: cancellationToken));

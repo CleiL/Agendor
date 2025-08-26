@@ -1,3 +1,4 @@
+using Agendor.Core.Interfaces;
 using Agendor.Infra.Data.Dapper;
 using Agendor.Infra.Data.DependencyInjection;
 using Agendor.Infra.Data.Services;
@@ -5,6 +6,8 @@ using Agendor.Server.Infra;
 using Dapper;
 using Serilog;
 using Serilog.Events;
+
+SQLitePCL.Batteries.Init();
 
 // Bootstrap do Serilog (console + arquivo)
 Log.Logger = new LoggerConfiguration()
@@ -45,6 +48,30 @@ try
 
     SqlMapper.AddTypeHandler(new SqliteGuidTextHandler());
 
+    var allowedOrigins = new[] {
+    "https://localhost:63153", 
+    "http://localhost:63153",
+    "http://localhost:4200",   
+    "https://localhost:4200"
+};
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("SpaCors", policy =>
+        {
+            policy
+                .SetIsOriginAllowed(origin =>
+                {
+          
+                    try { return new Uri(origin).Host.Equals("localhost", StringComparison.OrdinalIgnoreCase); }
+                    catch { return false; }
+                })
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials(); 
+        });
+    });
+
     var app = builder.Build();
 
     {
@@ -54,6 +81,14 @@ try
         var dir = Path.GetDirectoryName(Path.GetFullPath(dbPath));
         if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
     }
+
+    using (var scope = app.Services.CreateScope())
+    {
+        var init = scope.ServiceProvider.GetRequiredService<ISchemaInitializer>();
+        await init.EnsureCreatedAsync();
+    }
+
+    app.UseCors("SpaCors");
 
     // Handler global de erro (ProblemDetails) + log
     app.UseExceptionHandler(errorApp =>
@@ -108,6 +143,8 @@ try
     }
 
     app.UseHttpsRedirection();
+
+    app.UseAuthentication();
 
     app.UseAuthorization();
 

@@ -17,11 +17,6 @@ namespace Agendor.Application.Dto.Medicos
             [DefaultValue("clei.lisboa@gmail.com")]
             public string? Email { get; set; }
 
-            [Required(ErrorMessage = "Telefone é obrigatório.")]
-            [RegularExpression(@"^\+?[1-9]\d{1,14}$|^\d{10,11}$", ErrorMessage = "Telefone inválido.")]
-            [DefaultValue("+5511999990000")]
-            public string? Phone { get; set; }
-
             [Required(ErrorMessage = "CRM é obrigatório.")]
             [RegularExpression(@"^CRM/[A-Z]{2}\s\d{1,6}$", ErrorMessage = "Informe no formato: CRM/UF 123456")]
             [DefaultValue("CRM/SP 123456")]

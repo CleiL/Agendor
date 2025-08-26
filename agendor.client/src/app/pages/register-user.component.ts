@@ -40,14 +40,14 @@ import { cpfValidator } from "../validators/cpf.validator";
 
                     <mat-form-field appearance="outline">
                         <mat-label>Nome</mat-label>
-                        <input matInput type="text" placeholder="Enter your name" formControlName="name"  required>
-                        <mat-error *ngIf="registerForm.get('name')?.hasError('required')">
+                        <input matInput type="text" placeholder="Enter your name" formControlName="nome"  required>
+                        <mat-error *ngIf="registerForm.get('nome')?.hasError('required')">
                             Nome é obrigatório.
                         </mat-error>
-                        <mat-error *ngIf="registerForm.get('name')?.hasError('minlength')">
+                        <mat-error *ngIf="registerForm.get('nome')?.hasError('minlength')">
                             Nome deve ter pelo menos 3 caracteres.
                         </mat-error>
-                        <mat-error *ngIf="registerForm.get('name')?.hasError('maxlength')">
+                        <mat-error *ngIf="registerForm.get('nome')?.hasError('maxlength')">
                             Nome não pode ter mais de 50 caracteres.
                         </mat-error>
                     </mat-form-field>
@@ -154,7 +154,7 @@ export class RegisterUserComponent implements OnInit {
 
   ngOnInit(): void {
     this.registerForm = this.#fb.group({
-      name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
+      nome: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
       cpf: ['', [Validators.required, cpfValidator()]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]]
@@ -177,7 +177,7 @@ export class RegisterUserComponent implements OnInit {
           duration: 3000,
           panelClass: ['snackbar-success']
         });
-        this.#router.navigate(['/home']);
+        this.#router.navigate(['/login']);
       },
       error: err => {
         const errorMessage = err.error?.detail || 'Erro inesperado';

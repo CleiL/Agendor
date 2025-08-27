@@ -80,31 +80,32 @@ namespace Agendor.Application.Services
                 {
                     await uow.BeginAsync(ct);
 
-                    // 1) Validações de negócio
-                    ValidarDiaUtil(dto.DataHora);
-                    ValidarJanela(dto.DataHora);
-                    ValidarMultiploDe30(dto.DataHora);
+                    // **NORMALIZAÇÃO AQUI**
+                    var data = ToLocalUnspecified(dto.DataHora);
 
-                    // 2) Checagens de conflito
-                    if (await _repository.ExisteDoProfissionalNoHorario(dto.MedicoId, dto.DataHora, ct))
+                    // 1) Validações de negócio (usando 'data')
+                    ValidarDiaUtil(data);
+                    ValidarJanela(data);
+                    ValidarMultiploDe30(data);
+
+                    // 2) Conflitos (usando 'data')
+                    if (await _repository.ExisteDoProfissionalNoHorario(dto.MedicoId, data, ct))
                         throw new InvalidOperationException("O profissional já possui consulta nesse horário.");
 
-                    // Se o repositório usa DateOnly para o dia:
                     if (await _repository.PacienteJaTemNoDiaComProfissional(
                         dto.PacienteId,
                         dto.MedicoId,
-                        DateOnly.FromDateTime(dto.DataHora), // <= ajuste para DateOnly
+                        DateOnly.FromDateTime(data),
                         ct))
                         throw new InvalidOperationException("O paciente já possui consulta com esse profissional neste dia.");
 
-                    // 3) Persistência
+                    // 3) Persistência (gravando 'data' já normalizado)
                     var entity = new Consulta
                     {
                         ConsultaId = Guid.NewGuid(),
                         MedicoId = dto.MedicoId,
                         PacienteId = dto.PacienteId,
-                        // ajuste sua estratégia (UTC vs local). Aqui não forçamos conversão:
-                        DataHora = DateTime.SpecifyKind(dto.DataHora, DateTimeKind.Unspecified)
+                        DataHora = data
                     };
 
                     await _repository.CreateAsync(entity, ct);
@@ -112,7 +113,6 @@ namespace Agendor.Application.Services
 
                     _logger.LogInformation("Consulta {ConsultaId} agendada com sucesso", entity.ConsultaId);
 
-                    // 4) Retorno
                     return new ConsultaResponseDto
                     {
                         ConsultaId = entity.ConsultaId,
@@ -123,12 +123,11 @@ namespace Agendor.Application.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex,
-                        "Falha ao agendar consulta (MedicoId={MedicoId}, PacienteId={PacienteId}, DataHora={DataHora})",
+                    _logger.LogError(ex, "Falha ao agendar consulta (MedicoId={MedicoId}, PacienteId={PacienteId}, DataHora={DataHora})",
                         dto.MedicoId, dto.PacienteId, dto.DataHora);
                     await uow.RollbackAsync(ct);
                     throw;
-                }
+                }                              
 
             }
         }
@@ -168,6 +167,51 @@ namespace Agendor.Application.Services
                 list.Add(d);
 
             return list.AsReadOnly();
+        }
+
+        private static DateTime ToLocalUnspecified(DateTime dt)
+        {
+            // Se vier UTC (ex.: 11:00Z), converte para local (ex.: 08:00)…
+            if (dt.Kind == DateTimeKind.Utc)
+                dt = dt.ToLocalTime();
+
+            // …e fixa como "sem fuso" para todas as comparações no domínio
+            return DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
+        }
+
+
+        public async Task<IEnumerable<ConsultaResponseDto>> GetConsultasPorProfissionalAsync(Guid medicoId, CancellationToken cancellationToken)
+        {
+            using (_logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["Flow"] = "Consulta.GetConsultasPorProfissional",
+                ["MedicoId"] = medicoId
+            }))
+            {
+                await using var uow = await _uowFactory.CreateAsync(cancellationToken);
+                try
+                {
+                    await uow.BeginAsync(cancellationToken);
+
+                    var consultas = await _repository.GetAllByMedicoAsync(medicoId, cancellationToken);
+
+                    await uow.CommitAsync(cancellationToken);
+
+                    return consultas.Select(c => new ConsultaResponseDto
+                    {
+                        ConsultaId = c.ConsultaId,
+                        MedicoId = c.MedicoId,
+                        PacienteId = c.PacienteId,
+                        DataHora = c.DataHora
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erro ao listar consultas do médico {MedicoId}", medicoId);
+                    await uow.RollbackAsync(cancellationToken);
+                    throw;
+                }
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { RouterModule } from "@angular/router";
 import { FormsModule } from "@angular/forms";
 
@@ -13,6 +13,9 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { AppointmentService } from "../services/appointment.service";
+import { Medico } from "../interfaces/medico";
+import { MedicoService } from "../services/medico.service";
+import { AuthService } from "../services/auth.service";
 
 type Appointment = {
   id: string;
@@ -47,19 +50,25 @@ type Appointment = {
       </mat-card-header>
 
       <mat-card-content class="form-grid">
+
+        <!-- Especialidade -->
         <mat-form-field appearance="outline">
           <mat-label>Especialidade</mat-label>
+          <!-- use 'especialidades' carregadas do backend -->
           <mat-select [(ngModel)]="selectedSpecialty" (selectionChange)="onSpecialtyChange()">
-            <mat-option *ngFor="let esp of specialties" [value]="esp">{{ esp }}</mat-option>
+            <mat-option *ngFor="let esp of especialidades" [value]="esp">{{ esp }}</mat-option>
           </mat-select>
         </mat-form-field>
 
+        <!-- Médico -->
         <mat-form-field appearance="outline">
           <mat-label>Médico</mat-label>
-          <mat-select [(ngModel)]="selectedDoctor" [disabled]="!selectedSpecialty" (selectionChange)="refreshSlots()">
-            <mat-option *ngFor="let med of doctorsForSelected()" [value]="med">{{ med }}</mat-option>
+          <!-- selecione pelo ID real do médico -->
+          <mat-select [(ngModel)]="selectedDoctorId" [disabled]="!selectedSpecialty" (selectionChange)="refreshSlots()">
+            <mat-option *ngFor="let med of doctorsForSelected()" [value]="med.medicoId">{{ med.nome }}</mat-option>
           </mat-select>
         </mat-form-field>
+
 
         <mat-form-field appearance="outline">
           <mat-label>Data de Agendamento</mat-label>
@@ -73,7 +82,7 @@ type Appointment = {
 
         <mat-form-field appearance="outline">
           <mat-label>Horário</mat-label>
-          <mat-select [(ngModel)]="selectedSlot" [disabled]="!selectedDate || !selectedDoctor">
+          <mat-select [(ngModel)]="selectedSlot" [disabled]="!selectedDate || !selectedDoctorId">
             <mat-option *ngFor="let s of slotOptions" [value]="s">
               {{ s }}
             </mat-option>
@@ -140,37 +149,77 @@ type Appointment = {
     }
   `]
 })
-export class AgendaComponent {
+export class AgendaComponent implements OnInit {
   constructor(
     private snack: MatSnackBar,
-    private apptService: AppointmentService
+    private apptService: AppointmentService,
+    private medicoService: MedicoService,
+    private auth: AuthService
   ) { }
 
   // Simulação: paciente logado (id fixo para validar regra "1 por dia por profissional")
-  private readonly patientId = "meu-paciente";
+  private patientId: string | null = null;
 
   isLoadingSearch = false;
 
+  medicos: Medico[] = [];
+  especialidades: string[] = [];
+  medicosPorEspecialidade: Record<string, Medico[]> = {};
+
+
   // Estado do formulário
   selectedSpecialty: string | null = null;
-  selectedDoctor: string | null = null;
+  selectedDoctorId: string | null = null;
   selectedDate: Date | null = null;
   selectedSlot: string | null = null; // "HH:mm"
 
   // Slots disponíveis para a data e médico selecionados
   slotOptions: string[] = [];
 
-  // Catálogo simples
-  specialties: string[] = ["Clínico Geral", "Cardiologia", "Dermatologia"];
-  doctorsBySpecialty: Record<string, string[]> = {
-    "Clínico Geral": ["Dra. Ana Lima", "Dr. Paulo Souza"],
-    "Cardiologia": ["Dr. Marcos Silva", "Dra. Beatriz Figueiredo"],
-    "Dermatologia": ["Dra. Camila Rocha"]
-  };
+  appointments: Appointment[] = [];
 
-  // Agenda local (mock)
-  get appointments(): Appointment[] {
-    return this.apptService.getByPatient(this.patientId);
+  loadAppointments() {
+    if (!this.patientId) {          
+      this.snack.open("Sessão expirada. Faça login novamente.", "Fechar", { duration: 3000 });
+      return;
+    }
+
+    this.apptService.getByPatient(this.patientId).subscribe({
+      next: res => this.appointments = res.map(this.mapToAppointment),
+      error: _ => this.snack.open("Erro ao carregar consultas", "Fechar", { duration: 3000 })
+    });
+  }
+
+
+  ngOnInit(): void {
+    this.patientId = this.auth.userId; 
+    if (!this.patientId) {
+      this.snack.open("Sessão expirada. Faça login novamente.", "Fechar", { duration: 3000 });
+      return;
+    }
+    this.loadMedicos();
+    this.loadAppointments();
+  }
+
+
+  loadMedicos() {
+    this.medicoService.getAll().subscribe({
+      next: res => {
+        this.medicos = res;
+        this.medicosPorEspecialidade = {};
+
+        res.forEach(m => {
+          const esp = m.especialidade;
+          if (!this.medicosPorEspecialidade[esp]) {
+            this.medicosPorEspecialidade[esp] = [];
+          }
+          this.medicosPorEspecialidade[esp].push(m);
+        });
+
+        this.especialidades = Object.keys(this.medicosPorEspecialidade);
+      },
+      error: err => this.snack.open("Erro ao carregar médicos", "Fechar", { duration: 3000 })
+    });
   }
 
   // --------- UI helpers ---------
@@ -181,27 +230,35 @@ export class AgendaComponent {
   };
 
   get canBook(): boolean {
-    return !!(this.selectedSpecialty && this.selectedDoctor && this.selectedDate && this.selectedSlot);
+    return !!(this.selectedSpecialty && this.selectedDoctorId && this.selectedDate && this.selectedSlot);
   }
 
   onSpecialtyChange() {
-    this.selectedDoctor = null;
+    this.selectedDoctorId = null;
     this.refreshSlots();
   }
 
-  doctorsForSelected(): string[] {
-    return this.selectedSpecialty ? (this.doctorsBySpecialty[this.selectedSpecialty] ?? []) : [];
+  doctorsForSelected(): Medico[] {
+    return this.selectedSpecialty
+      ? (this.medicosPorEspecialidade[this.selectedSpecialty] ?? [])
+      : [];
   }
 
   refreshSlots() {
     this.selectedSlot = null;
-    if (!this.selectedDate || !this.selectedDoctor) {
-      this.slotOptions = [];
-      return;
-    }
-    this.slotOptions = this.generateDaySlots(this.selectedDate)
-      .filter(s => this.isSlotAvailableForDoctor(this.selectedDoctor!, this.selectedDate!, s));
+    this.slotOptions = [];
+    if (!this.selectedDate || !this.selectedDoctorId) return;
+
+    this.apptService.getAgenda(this.selectedDoctorId, this.selectedDate).subscribe({
+      next: slots => {
+        this.slotOptions = slots.filter(s => s.disponivel)
+          .map(s => this.timeToStr(new Date(s.horario)));
+      },
+      error: _ => this.snack.open("Erro ao buscar agenda", "Fechar", { duration: 3000 })
+    });
   }
+
+
 
   // --------- Regras de negócio (front) ---------
   private generateDaySlots(date: Date): string[] {
@@ -255,45 +312,49 @@ export class AgendaComponent {
   }
 
   addAppointment(): void {
-    if (!this.canBook) return;
+    if (!this.canBook || !this.patientId) return;
 
-    // 1) Segunda a sexta
+    // checagem leve de dia útil para UX (opcional)
     if (!this.weekdaysOnly(this.selectedDate!)) {
       this.snack.open("Agendamentos apenas de segunda a sexta.", "Fechar", { duration: 3500 });
       return;
     }
 
-    // 2) Slot válido (08:00–18:00, 30min)
+    // confia nos slots do backend:
     if (!this.slotOptions.includes(this.selectedSlot!)) {
       this.snack.open("Horário inválido para o dia selecionado.", "Fechar", { duration: 3500 });
       return;
     }
 
-    // 3) Profissional não pode ter 2 no mesmo horário
-    if (!this.isSlotAvailableForDoctor(this.selectedDoctor!, this.selectedDate!, this.selectedSlot!)) {
-      this.snack.open("Médico já possui consulta neste horário.", "Fechar", { duration: 3500 });
-      return;
-    }
-
-    // 4) Paciente só 1 consulta com o mesmo profissional no dia
-    if (this.patientHasConsultationWithDoctorOnDay(this.patientId, this.selectedDoctor!, this.selectedDate!)) {
-      this.snack.open("Você já possui consulta com este profissional neste dia.", "Fechar", { duration: 3500 });
-      return;
-    }
-
-    // Passou nas regras → cria a consulta local
     const dateWithTime = this.mergeDateAndTime(this.selectedDate!, this.selectedSlot!);
-    this.apptService.add({
-      id: crypto.randomUUID(),
-      patientId: this.patientId,
-      date: dateWithTime,
-      specialty: this.selectedSpecialty!,
-      doctor: this.selectedDoctor!
+
+    const dto = {
+      medicoId: this.selectedDoctorId!,
+      pacienteId: this.patientId,     // do JWT
+      dataHora: dateWithTime.toISOString()
+    };
+
+    this.apptService.agendarConsulta(dto).subscribe({
+      next: () => {
+        this.snack.open("Consulta agendada!", "Fechar", { duration: 2500 });
+        this.refreshSlots();
+        this.loadAppointments();
+      },
+      error: err => {
+        const msg = err?.error?.detail ?? "Erro ao agendar consulta";
+        this.snack.open(msg, "Fechar", { duration: 4000 });
+      }
     });
-
-    this.snack.open("Consulta agendada!", "Fechar", { duration: 2500 });
-
-    // Recalcular slots para refletir o horário agora ocupado
-    this.refreshSlots();
   }
+
+
+  private mapToAppointment = (r: any): Appointment => ({
+    id: r.consultaId,
+    patientId: r.pacienteId,
+    date: new Date(r.dataHora),
+    specialty: r.especialidade ?? "",
+    doctor: r.medicoNome ?? ""
+  });
+
+
 }

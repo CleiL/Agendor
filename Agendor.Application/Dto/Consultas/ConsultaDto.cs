@@ -12,6 +12,8 @@
             public Guid MedicoId { get; set; }
             public Guid PacienteId { get; set; }
             public DateTime DataHora { get; set; }
+            public string? Slot { get; set; }
+            public DateOnly Dia { get; set; }
         }
 
         public class ConsultaResponseDto
@@ -20,6 +22,8 @@
             public Guid MedicoId { get; set; }
             public Guid PacienteId { get; set; }
             public DateTime DataHora { get; set; }
+            public string? Especialidade { get; set; }
+            public string? MedicoNome { get; set; }
         }
 
         public class AgendaSlotDto

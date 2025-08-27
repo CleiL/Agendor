@@ -68,8 +68,8 @@ namespace Agendor.Infra.Repositories
         {
             const string sql = """
                 select count(1)
-                from Pacientes
-                where Email = @email AND (@excludeId is null or PacienteId <> @excludeId);
+                from Medicos
+                where Email = @email AND (@excludeId is null or MedicoId <> @excludeId);
                 """;
             var count = await Conn.ExecuteScalarAsync<int>(new CommandDefinition(sql, new { email, excludeId }, Tx, cancellationToken: cancellationToken));
             _logger.LogDebug("Verificado existência por Email {email}, excluindo {excludeId}: {exists}", email, excludeId, count > 0);
@@ -90,7 +90,7 @@ namespace Agendor.Infra.Repositories
                 _logger.LogDebug("Consultando todos os registros");
                 return Conn.QueryAsync<Medico>(new CommandDefinition(sql, transaction: Tx, cancellationToken: cancellationToken));
             }
-        }
+        }             
 
         public Task<Medico?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {

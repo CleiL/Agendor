@@ -66,6 +66,11 @@ export class AuthService {
     return r === 'médico' || r === 'medico' || r === 'doctor';
   }
 
+  get userId(): string | null {
+    const payload = this.decodePayload<any>(this.token);
+    return payload?.sub ?? null;
+  }
+
   // ====== Helpers de JWT ======
 
   private decodePayload<T = any>(token: string | null): T | null {

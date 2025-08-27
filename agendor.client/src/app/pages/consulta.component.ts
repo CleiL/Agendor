@@ -1,7 +1,9 @@
 import { CommonModule } from "@angular/common";
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { MatCardModule } from "@angular/material/card";
-import { AppointmentService, Appointment } from "../services/appointment.service";
+import { AppointmentService } from "../services/appointment.service";
+import { ConsultaResponseDto } from "../interfaces/consulta";
+import { AuthService } from "../services/auth.service";
 
 @Component({
   selector: "app-consultas",
@@ -16,17 +18,18 @@ import { AppointmentService, Appointment } from "../services/appointment.service
     </mat-card>
 
     <section class="list">
-      <mat-card class="appt" *ngFor="let appt of myAppointments">
-        <mat-card-title>{{ appt.specialty }} — {{ appt.patientId }}</mat-card-title>
+      <mat-card class="appt" *ngFor="let c of consultas">
+        <mat-card-title>{{ c.especialidade || '—' }} — {{ c.pacienteId }}</mat-card-title>
         <mat-card-subtitle>
-          {{ appt.date | date:'fullDate' }} — {{ appt.date | date:'HH:mm' }}
+          {{ c.dataHora | date:'fullDate' }} — {{ c.dataHora | date:'HH:mm' }}
         </mat-card-subtitle>
       </mat-card>
 
-      <p *ngIf="myAppointments.length === 0" class="empty-hint">
+      <p *ngIf="consultas.length === 0" class="empty-hint">
         Nenhuma consulta marcada para você.
       </p>
     </section>
+
   `,
   styles: [`
     :host { display: block; width: 100%; }
@@ -41,12 +44,25 @@ import { AppointmentService, Appointment } from "../services/appointment.service
     .empty-hint { opacity: 0.7; }
   `]
 })
-export class ConsultaComponent {
-  private readonly doctorName = "Dr. Marcos Silva"; // simula médico logado
+export class ConsultaComponent implements OnInit {
+  consultas: ConsultaResponseDto[] = [];
 
-  constructor(private apptService: AppointmentService) { }
+  constructor(
+    private apptService: AppointmentService,
+    private auth: AuthService
+  ) { }
 
-  get myAppointments(): Appointment[] {
-    return this.apptService.getByDoctor(this.doctorName);
+  ngOnInit(): void {
+    const medicoId = this.auth.userId;
+
+    if (!medicoId) {
+      console.error("Usuário não autenticado ou token inválido.");
+      return;
+    }
+
+    this.apptService.getByDoctor(medicoId).subscribe({
+      next: res => this.consultas = res,
+      error: err => console.error("Erro ao carregar consultas", err)
+    });
   }
 }

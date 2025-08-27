@@ -8,5 +8,6 @@ namespace Agendor.Core.Interfaces
         Task<bool> PacienteJaTemNoDiaComProfissional(Guid pacienteId, Guid profissionalId, DateOnly dia, CancellationToken cancellationToken = default);
         Task CreateAsync(Consulta entity, CancellationToken cancellationToken = default);
         Task<IEnumerable<DateTime>> ObterHorariosOcupadosDoProfissional(Guid medicoId, DateOnly dia, CancellationToken cancellationToken = default);
+        Task<IEnumerable<Consulta>> GetAllByMedicoAsync(Guid medicoId, CancellationToken cancellationToken = default);
     }
 }

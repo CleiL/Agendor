@@ -17,6 +17,7 @@ namespace Agendor.Application.Services
         (
             IUsuarioRepository usuarioRepository,
             IPacienteRepository pacienteRepository,
+            IMedicoRepository medicoRepository,
             IUnitOfWorkFactory uowFactory,
             IOptions<JwtOptions> jwtOptions,
             ILogger<AuthService> logger
@@ -25,6 +26,7 @@ namespace Agendor.Application.Services
     {
         private readonly IUsuarioRepository _usuarios = usuarioRepository;
         private readonly IPacienteRepository _pacientes = pacienteRepository;
+        private readonly IMedicoRepository _medico = medicoRepository;
         private readonly IUnitOfWorkFactory _uowFactory = uowFactory;
         private readonly JwtOptions _jwt = jwtOptions.Value;
         private readonly ILogger<AuthService> _log = logger;
@@ -82,6 +84,17 @@ namespace Agendor.Application.Services
                     var existingUsers = await _usuarios.GetAllAsync();
                     if (existingUsers.Any(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)))
                         throw new InvalidOperationException("Email já cadastrado para login.");
+
+                    var medico = new Medico
+                    {
+                        MedicoId = Guid.NewGuid(),
+                        Nome = dto.Nome!.Trim(),
+                        Email = email,
+                        Especialidade = dto.Especialidade!,
+                        CRM = dto.CRM!
+                    };
+
+                    await _medico.CreateAsync(medico);
 
                     var user = new Usuario
                     {

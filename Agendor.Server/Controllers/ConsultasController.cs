@@ -42,15 +42,11 @@ namespace Agendor.Server.Controllers
                     var created = await _service.AgendarAsync(dto, ct);
                     _logger.LogInformation("Consulta {ConsultaId} criada (MedicoId={MedicoId}, PacienteId={PacienteId}, DataHora={DataHora})",
                         created.ConsultaId, created.MedicoId, created.PacienteId, created.DataHora);
-
-                    // Como não temos GET-by-id no service, usamos Created com Location direto:
                     return Created($"/api/consulta/{created.ConsultaId}", created);
-                    // Se você implementar GET /api/consulta/{id}, troque por:
-                    // return CreatedAtAction(nameof(GetById), new { id = created.ConsultaId }, created);
+                
                 }
                 catch (ArgumentException ex)
                 {
-                    // validações de entrada (ex.: GUID vazio, data inválida, etc.)
                     return BadRequest(Problem(title: "Dados inválidos", detail: ex.Message, statusCode: StatusCodes.Status400BadRequest));
                 }
                 catch (InvalidOperationException ex)
@@ -86,5 +82,33 @@ namespace Agendor.Server.Controllers
                 return Ok(slots);
             }
         }
+
+        /// <summary>Lista todas as consultas agendadas de um profissional.</summary>
+        [HttpGet("profissionais/{profissionalId:guid}/consultas")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<ConsultaResponseDto>))]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
+        public async Task<ActionResult<IEnumerable<ConsultaResponseDto>>> ConsultasDoProfissional(Guid profissionalId)
+        {
+            var ct = HttpContext.RequestAborted;
+
+            using (_logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["Flow"] = "ConsultaController.ListarPorProfissional",
+                ["ProfissionalId"] = profissionalId
+            }))
+            {
+                try
+                {
+                    var consultas = await _service.GetConsultasPorProfissionalAsync(profissionalId, ct);
+                    return Ok(consultas);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Erro ao listar consultas do profissional");
+                    return StatusCode(500, Problem(title: "Erro interno", detail: ex.Message));
+                }
+            }
+        }
+
     }
 }

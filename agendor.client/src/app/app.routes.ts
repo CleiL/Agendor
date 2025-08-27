@@ -1,8 +1,8 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './guard/auth.guard';
 import { PROFILE_SERVICE, PROFILE_TYPE } from './contracts/profile.tokens';
-import { DoctorService } from './services/doctor.service';
 import { PatientService } from './services/patient.service';
+import { MedicoService } from './services/medico.service';
 
 
 export const routes: Routes = [
@@ -24,7 +24,7 @@ export const routes: Routes = [
       {
         path: 'perfil-medico',
         providers: [
-          { provide: PROFILE_SERVICE, useClass: DoctorService },
+          { provide: PROFILE_SERVICE, useClass: MedicoService },
           { provide: PROFILE_TYPE, useValue: 'medico' }
         ], loadComponent: () => import('./pages/profile.component').then(m => m.ProfileComponent)
       },

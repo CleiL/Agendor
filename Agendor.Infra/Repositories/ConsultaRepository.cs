@@ -105,5 +105,19 @@ namespace Agendor.Infra.Repositories
                     new CommandDefinition(sql, new { pacienteId, profissionalId, start, end }, Tx, cancellationToken: cancellationToken));
             }
         }
+
+        public Task<IEnumerable<Consulta>> GetAllByMedicoAsync(Guid medicoId, CancellationToken cancellationToken = default)
+        {
+            const string sql = """
+                SELECT ConsultaId, MedicoId, PacienteId, DataHora
+                FROM Consultas
+                WHERE MedicoId = @medicoId
+                ORDER BY DataHora
+            """;
+
+            return Conn.QueryAsync<Consulta>(
+                new CommandDefinition(sql, new { medicoId }, Tx, cancellationToken: cancellationToken));
+
+        }
     }
 }

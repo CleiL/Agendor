@@ -30,6 +30,7 @@ namespace Agendor.Application.Services
         private readonly IUnitOfWorkFactory _uowFactory = uowFactory;
         private readonly JwtOptions _jwt = jwtOptions.Value;
         private readonly ILogger<AuthService> _log = logger;
+
         public async Task<LoginResponseDto> AuthenticateAsync(LoginDto dto, CancellationToken cancellationToken = default)
         {
             using (_log.BeginScope(new Dictionary<string, object?> { ["Flow"] = "Auth.Login", ["Email"] = dto.Email }))
@@ -39,9 +40,7 @@ namespace Agendor.Application.Services
                 await using var uow = await _uowFactory.CreateAsync(cancellationToken);
                 await uow.BeginAsync(cancellationToken);
 
-                // AGORA usamos o método certo:
                 var user = await _usuarios.GetByEmailAsync(email, cancellationToken);
-
                 if (user is null || !BCrypt.Net.BCrypt.Verify(dto.Password!, user.PasswordHash))
                 {
                     await uow.RollbackAsync(cancellationToken);
@@ -49,12 +48,29 @@ namespace Agendor.Application.Services
                     throw new UnauthorizedAccessException("Credenciais inválidas.");
                 }
 
-                var token = GenerateJwt(user);
+                // 👇 NOVO: descubra os IDs conforme a role
+                Guid? pacienteId = null;
+                Guid? medicoId = null;
+                if (string.Equals(user.Role, "Paciente", StringComparison.OrdinalIgnoreCase))
+                    pacienteId = await _pacientes.GetIdByEmailAsync(email, cancellationToken);
+                else if (string.Equals(user.Role, "Medico", StringComparison.OrdinalIgnoreCase))
+                    medicoId = await _medico.GetIdByEmailAsync(email, cancellationToken);
+
+                // 👇 NOVO: gere o JWT incluindo os IDs
+                var token = GenerateJwt(user, pacienteId, medicoId);
 
                 await uow.CommitAsync(cancellationToken);
                 _log.LogInformation("Login bem-sucedido para {Email}", email);
 
-                return new LoginResponseDto { Token = token, Nome = user.Email};
+                // 👇 NOVO: devolva também no response
+                return new LoginResponseDto
+                {
+                    Token = token,
+                    Nome = user.Email,
+                    UsuarioId = user.UsuarioId,
+                    PacienteId = pacienteId,
+                    MedicoId = medicoId
+                };
             }
         }
 
@@ -180,18 +196,25 @@ namespace Agendor.Application.Services
         private static string NormalizeEmail(string email)
         => (email ?? throw new ArgumentNullException(nameof(email))).Trim().ToLowerInvariant();
 
-        private string GenerateJwt(Usuario user)
+        private string GenerateJwt(Usuario user, Guid? pacienteId, Guid? medicoId)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.SecretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
-            {
+            var claims = new List<Claim>
+    {
         new Claim(JwtRegisteredClaimNames.Sub, user.UsuarioId.ToString()),
         new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
         new Claim(JwtRegisteredClaimNames.Email, user.Email),
-        new Claim(ClaimTypes.Role, user.Role) // "Paciente" | "Medico"
+        new Claim(ClaimTypes.Role, user.Role),
+        new Claim("agendor:user_id", user.UsuarioId.ToString())
     };
+
+            if (pacienteId.HasValue)
+                claims.Add(new Claim("agendor:paciente_id", pacienteId.Value.ToString()));
+
+            if (medicoId.HasValue)
+                claims.Add(new Claim("agendor:medico_id", medicoId.Value.ToString()));
 
             var token = new JwtSecurityToken(
                 issuer: _jwt.Issuer,

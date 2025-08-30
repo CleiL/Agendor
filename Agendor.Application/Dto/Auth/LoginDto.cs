@@ -22,5 +22,8 @@ namespace Agendor.Application.Dto.Auth
     {
         public string Token { get; set; } = string.Empty;
         public string Nome { get; set; } = string.Empty;
+        public Guid UsuarioId { get; set; }
+        public Guid? PacienteId { get; set; }
+        public Guid? MedicoId { get; set; }
     }
 }

@@ -106,5 +106,13 @@ namespace Agendor.Infra.Repositories
                 return entity;
             }
         }
+
+        public async Task<Guid?> GetIdByEmailAsync(string email, CancellationToken cancellationToken = default)
+        {
+            const string sql = @"select PacienteId from Pacientes where lower(Email) = lower(@email) limit 1";
+            var id = await Conn.ExecuteScalarAsync<string?>(
+                new CommandDefinition(sql, new { email }, Tx, cancellationToken: cancellationToken));
+            return id is null ? (Guid?)null : Guid.Parse(id);
+        }
     }
 }

@@ -6,6 +6,8 @@ namespace Agendor.Core.Interfaces
         : IBaseRepository<Medico>
     {
         Task<bool> ExistsByCrmAsync(string crm, Guid? excludeId = null, CancellationToken cancellationToken = default);
-        Task<bool> ExistsByEmailAsync(string email, Guid? excludeId = null, CancellationToken cancellationToken = default);        
+        Task<bool> ExistsByEmailAsync(string email, Guid? excludeId = null, CancellationToken cancellationToken = default);
+        Task<Guid?> GetIdByEmailAsync(string email, CancellationToken cancellationToken = default);
+
     }
 }

@@ -73,7 +73,7 @@ CREATE INDEX IF NOT EXISTS IX_Consultas_Medico    ON Consultas (MedicoId);
 
 -- View para listar agenda do médico
 CREATE VIEW IF NOT EXISTS vw_AgendaMedico AS
-SELECT c.ConsultaId, c.DataHora, c.DataHoraFim,
+SELECT c.ConsultaId, c.DataHora, c.DataFim,
        m.MedicoId, m.Nome AS Medico, m.Especialidade,
        p.PacienteId, p.Nome AS Paciente
 FROM Consultas c
